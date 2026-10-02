@@ -5,7 +5,8 @@ Stdlib only (Python 3.8+), so it also runs on a cluster login node:
     ssh hpc 'python3 - --log runs/42.out --slurm 42' < watch.py
 
 Events: nan, spike, grad_spike, oom, crash, stall, disk, exited (local pid gone), done / died (SLURM),
-and progress (only with --heartbeat).
+and healthy: nothing wrong after --max-minutes, so agent background-task limits never kill it mid-watch.
+Restart it with --from <offset> to keep watching.
 """
 import argparse
 import collections
@@ -138,8 +139,10 @@ def watch(a):
         free = shutil.disk_usage(os.path.dirname(os.path.abspath(a.log))).free / 1e9
         if free < a.min_free:
             return emit("disk", "%.1f GB free where the log is written" % free, state)
-        if a.heartbeat and time.time() - started > a.heartbeat * 60:
-            return emit("progress", "heartbeat", state)
+        if time.time() - started > a.max_minutes * 60:
+            return emit("healthy", "no problems in the last %g min" % a.max_minutes, state)
+        if os.getppid() == 1:  # our ssh session or agent died: don't linger on a shared login node
+            return None
         time.sleep(a.every)
 
 
@@ -153,7 +156,8 @@ def main(argv=None):
     p.add_argument("--spike", type=float, default=3.0, help="alert when loss > SPIKE x recent median")
     p.add_argument("--grad-spike", type=float, default=10.0, help="alert when grad norm > this x recent median")
     p.add_argument("--min-free", type=float, default=2.0, help="alert when free disk drops below this many GB")
-    p.add_argument("--heartbeat", type=float, help="also exit with a progress event every N minutes")
+    p.add_argument("--max-minutes", type=float, default=20,
+                   help="exit with a 'healthy' event after this long (stay under your agent's background limit)")
     p.add_argument("--stall", type=float, default=30, help="minutes without log output before alerting")
     p.add_argument("--every", type=float, default=30, help="seconds between polls")
     p.add_argument("--tail", type=int, default=40, help="log lines to include in the event")

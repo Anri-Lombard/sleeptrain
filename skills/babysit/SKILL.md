@@ -64,9 +64,11 @@ disk), `--every 30` (poll seconds; keep it at 30+ on shared schedulers), and
 `--loss-regex` if the log names the train loss something other than `loss` /
 `train_loss` / `train/loss`.
 
-If they want check-ins while they're up, add `--heartbeat 60`: the watcher also
-exits every hour with a `progress` event, so you can send a progress update and
-restart it with `--from <offset>`.
+The watcher exits with a `healthy` event every 20 minutes (`--max-minutes`), because
+agent harnesses kill long background commands. That is the normal heartbeat: restart
+it right away with `--from <offset>` and say nothing, unless they asked for
+check-ins (then send the `chart.py` two-liner about once an hour). If a watcher
+ever dies without an event, check the run yourself before restarting it.
 
 ## 3. When it wakes you
 
@@ -83,7 +85,7 @@ Read the tail before deciding anything. Then:
 | `crash` | The traceback. Code bug, data bug, or infrastructure (NCCL, node, disk full)? | Infrastructure: resume as is. Obvious one-line code or path bug: fix, note the diff, resume. Anything else: report. |
 | `stall` | Is the process alive and using the GPU (`nvidia-smi`, `sstat -j`, `ps`)? Dataloader hang, NCCL timeout, full disk? | Hung but alive: kill and resume. Dead: treat as `crash`. |
 | `disk` | What's filling it: checkpoints, logs, caches? | Never delete anything yourself. Report with the biggest directories (`du -sh`) and which old checkpoints could go. |
-| `progress` | Only with `--heartbeat`. | Send the `chart.py` two-liner, restart the watcher with `--from <offset>`. |
+| `healthy` | Nothing: this is the 20-minute heartbeat. | Restart the watcher with `--from <offset>`. Check-in only if they asked for them. |
 | `died` | SLURM state: `TIMEOUT`, `OUT_OF_MEMORY`, `NODE_FAIL`, `PREEMPTED`, `FAILED`. | `TIMEOUT` / `NODE_FAIL` / `PREEMPTED`: resubmit with resume. Others: as `oom` / `crash`. |
 | `exited` | The tail: did it finish cleanly or die? | As `done` or `crash`. |
 | `done` | Final loss and eval numbers in the log. | Write the report. |

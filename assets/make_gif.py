@@ -32,7 +32,7 @@ snap(700, "23:58")
 add(seg(""), ms=50)
 add(seg("● ", "claude"), seg("Watching run.log (pid 4242), checkpoints every 50 steps."), ms=500)
 add(seg("  Going quiet until something breaks. Sleep well."), ms=500)
-add(seg("  └ watch.py in background · 0 tokens while the run is healthy", "dim"), ms=1600)
+add(seg("  └ watch.py in background · near-zero tokens while healthy", "dim"), ms=1600)
 add(seg("                    z z z . . .", "blue"), ms=1300, clock="00:47")
 snap(900, "02:13")
 for step, loss, g, col in [(117, "2.0069", "0.76", "dim"), (118, "1.9423", "2.27", "fg"),

@@ -63,4 +63,12 @@ with tempfile.TemporaryDirectory() as d:
                          capture_output=True, text=True, timeout=10).stdout
     assert json.loads(out)["event"] == "exited"
 
+# with nothing wrong it checks in as healthy instead of running forever
+with tempfile.TemporaryDirectory() as d:
+    log = os.path.join(d, "run.log")
+    open(log, "w").write("step 1 | loss 2.0\n")
+    out = subprocess.run([sys.executable, WATCH, "--log", log, "--every", "0.05", "--max-minutes", "0.005"],
+                         capture_output=True, text=True, timeout=10).stdout
+    assert json.loads(out)["event"] == "healthy"
+
 print("ok")

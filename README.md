@@ -77,8 +77,9 @@ you have them set up).
 
 `skills/babysit/watch.py` is a ~170-line, stdlib-only Python script that follows the log and
 blocks until something needs attention, then prints one JSON event and exits. Claude runs it
-in the background, so it spends **zero tokens while the run is healthy** and only wakes on a
-real event. Since it's stdlib only, it also runs on a cluster login node over ssh with nothing
+in the background, so it costs **almost no tokens while the run is healthy**: a quiet check-in
+every 20 minutes (agent background tasks get killed if they run longer) and a real wake-up only
+when something breaks. Since it's stdlib only, it also runs on a cluster login node over ssh with nothing
 installed:
 
 ```bash
