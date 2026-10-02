@@ -14,7 +14,7 @@ import re
 import statistics
 from html import escape
 
-from watch import LOSS
+from watch import GRAD, LOSS
 
 STEP = re.compile(r"(?<![\w/])(?:global_)?step\b[\s\"':=]*(\d+)(?:\s*/\s*(\d+))?|(\d+)/(\d+) \[", re.I)
 LEFT = re.compile(r"<(?:(\d+):)?(\d+):(\d+)")  # tqdm's time remaining, e.g. [12:01<1:03:22, 3.1it/s]
@@ -22,8 +22,8 @@ SPARK = "▁▂▃▄▅▆▇█"
 
 
 def parse(path, loss_re):
-    """[(step, loss)], total steps if the log says, tqdm time left if any."""
-    pts, total, left, step = [], None, None, None
+    """[(step, loss)], [(step, grad_norm)], total steps if the log says, tqdm time left if any."""
+    pts, grads, total, left, step = [], [], None, None, None
     with open(path, errors="replace") as f:
         for raw in f:
             for line in raw.split("\r"):
@@ -38,7 +38,10 @@ def parse(path, loss_re):
                 m = loss_re.search(line)
                 if m:
                     pts.append((step if step is not None else len(pts), float(m.group(1))))
-    return pts, total, left
+                g = GRAD.search(line)
+                if g:
+                    grads.append((step if step is not None else len(pts), float(g.group(1))))
+    return pts, grads, total, left
 
 
 def first_bad(pts, spike=3.0):
@@ -49,6 +52,18 @@ def first_bad(pts, spike=3.0):
             return i
         h.append(y)
     return None
+
+
+def broke(run):
+    """(step, what) for the first NaN, loss blow-up or exploding grad norm in a run, or None."""
+    _, pts, grads = run
+    found = []
+    c, g = first_bad(pts), first_bad(grads, 10.0)
+    if c is not None:
+        found.append((pts[c][0], "NaN" if not math.isfinite(pts[c][1]) else "blew up"))
+    if g is not None:
+        found.append((grads[g][0], "grad norm"))
+    return min(found) if found else None
 
 
 def terminal(runs, total, left):
@@ -64,8 +79,8 @@ def terminal(runs, total, left):
         head = f"{runs[-1][0]}  step {step:,}"
     if left is not None:
         head += f"  · ~{left // 3600}h {left % 3600 // 60:02d}m left"
-    c = first_bad(pts)
-    finite = [y for _, y in pts[:c]][-240:]  # sparkline of the healthy part, a 1e6 blow-up would flatten it
+    b = broke(runs[-1])
+    finite = [y for x, y in pts if b is None or x < b[0]][-240:]  # healthy part only, a 1e6 blow-up would flatten it
     spark = ""
     if finite:
         k = max(1, len(finite) // 30)
@@ -73,8 +88,8 @@ def terminal(runs, total, left):
         lo, hi = min(buckets), max(buckets)
         spark = "".join(SPARK[int((b - lo) / (hi - lo or 1) * 7.999)] for b in buckets)
     tail = f"  min {min(finite):.4g}" if finite else ""
-    if c is not None:
-        tail += f" · ✕ {'NaN' if not math.isfinite(pts[c][1]) else 'blew up'} @ step {pts[c][0]:,}"
+    if b is not None:
+        tail += f" · ✕ {b[1]} @ step {b[0]:,}"
     if len(runs) > 1:
         tail += f" · {len(runs) - 1} resume{'s' * (len(runs) > 2)}"
     return f"{head}\nloss {loss:.4g}  {spark}{tail}"
@@ -82,11 +97,11 @@ def terminal(runs, total, left):
 
 def svg(runs, total):
     W, H, L, R, T, B = 760, 340, 64, 24, 64, 46
-    cut = [first_bad(pts) for _, pts in runs]
-    healthy = [y for (_, pts), c in zip(runs, cut) for _, y in pts[:c]]
+    cut = [broke(r) for r in runs]
+    healthy = [y for (_, pts, _), b in zip(runs, cut) for x, y in pts if b is None or x < b[0]]
     if not healthy:
         return None
-    xmax = max([total or 0] + [x for _, pts in runs for x, _ in pts]) or 1
+    xmax = max([total or 0] + [x for _, pts, _ in runs for x, _ in pts]) or 1
     lo, hi = min(healthy), max(healthy)
     hi = hi if hi > lo else lo + 1
     X = lambda x: L + (W - L - R) * x / xmax
@@ -101,7 +116,7 @@ def svg(runs, total):
         o.append(f'<text x="{L - 8}" y="{Y(v) + 4:.1f}" text-anchor="end" {font} font-size="11" fill="#8b8783">{v:.3g}</text>')
     o.append(f'<text x="{L}" y="{H - 18}" {font} font-size="11" fill="#8b8783">0</text>')
     o.append(f'<text x="{W - R}" y="{H - 18}" text-anchor="end" {font} font-size="11" fill="#8b8783">step {xmax:,}</text>')
-    for n, ((_, pts), c) in enumerate(zip(runs, cut)):
+    for n, ((_, pts, _), b) in enumerate(zip(runs, cut)):
         if not pts:
             continue
         last = n == len(runs) - 1
@@ -109,23 +124,21 @@ def svg(runs, total):
             x0 = X(pts[0][0])
             o.append(f'<line x1="{x0:.1f}" x2="{x0:.1f}" y1="{T - 6}" y2="{H - B}" stroke="#d97757" stroke-dasharray="3 4" opacity=".7"/>')
             o.append(f'<text x="{x0 + 6:.1f}" y="{H - B - 8}" {font} font-size="11" fill="#d97757">resumed @ {pts[0][0]:,}</text>')
-        shown = pts if c is None else pts[:c + 1]  # past a blow-up the curve is just the clip line
+        shown = [p for p in pts if b is None or p[0] <= b[0]]  # past a blow-up the curve is just the clip line
         k = max(1, len(shown) // 600)
         line = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in shown[::k] + shown[-1:])
         style = 'stroke="#d97757" stroke-width="2.5"' if last else 'stroke="#8b8783" stroke-width="2" stroke-dasharray="5 4"'
         o.append(f'<polyline points="{line}" fill="none" {style} stroke-linejoin="round"/>')
-        if c is not None:
-            bx, by = pts[c]
-            label = "NaN" if not math.isfinite(by) else "blew up"
-            o.append(f'<text x="{X(bx):.1f}" y="{T - 10}" text-anchor="middle" {font} font-size="12" font-weight="bold" fill="#ff6b6b">✕ {label} @ {bx:,}</text>')
+        if b is not None:
+            o.append(f'<text x="{X(b[0]):.1f}" y="{T - 10}" text-anchor="middle" {font} font-size="12" font-weight="bold" fill="#ff6b6b">✕ {b[1]} @ {b[0]:,}</text>')
     step, loss = runs[-1][1][-1] if runs[-1][1] else (0, float("nan"))
-    broke = cut[-1] is not None
+    failed = cut[-1] is not None
     o.append(f'<text x="{W - R}" y="36" text-anchor="end" {font} font-size="22" font-weight="bold" '
-             f'fill="{"#ff6b6b" if broke else "#e8e6e3"}">{"NaN" if not math.isfinite(loss) else f"{loss:.4g}"}</text>')
+             f'fill="{"#ff6b6b" if failed else "#e8e6e3"}">{"NaN" if not math.isfinite(loss) else f"{loss:.4g}"}</text>')
     if total:
         frac = min(1.0, step / total)
         o.append(f'<rect x="{L}" y="{H - 12}" width="{W - L - R}" height="4" rx="2" fill="#2e2c2a"/>')
-        o.append(f'<rect x="{L}" y="{H - 12}" width="{(W - L - R) * frac:.1f}" height="4" rx="2" fill="{"#ff6b6b" if broke else "#7ee787"}"/>')
+        o.append(f'<rect x="{L}" y="{H - 12}" width="{(W - L - R) * frac:.1f}" height="4" rx="2" fill="{"#ff6b6b" if failed else "#7ee787"}"/>')
     o.append("</svg>")
     return "\n".join(o)
 
@@ -140,8 +153,8 @@ def main(argv=None):
     loss_re = re.compile(a.loss_regex, re.I)
     runs, total, left = [], a.total, None
     for path in a.logs:
-        pts, t, left = parse(path, loss_re)
-        runs.append((os.path.basename(path), pts))
+        pts, grads, t, left = parse(path, loss_re)
+        runs.append((os.path.basename(path), pts, grads))
         total = a.total or t or total
     if a.svg:
         out = svg(runs, total)
