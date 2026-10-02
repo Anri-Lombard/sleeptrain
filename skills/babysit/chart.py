@@ -55,15 +55,24 @@ def first_bad(pts, spike=3.0):
 
 
 def broke(run):
-    """(step, what) for the first NaN, loss blow-up or exploding grad norm in a run, or None."""
+    """(step, what, fatal) for the first NaN, loss blow-up or grad-norm spike in a run, or None.
+
+    Only loss problems are fatal (the curve is cut there). A grad-norm spike is marked but the
+    curve carries on, since high-LR runs recover from one-step blips all the time.
+    """
     _, pts, grads = run
     found = []
     c, g = first_bad(pts), first_bad(grads, 10.0)
     if c is not None:
-        found.append((pts[c][0], "NaN" if not math.isfinite(pts[c][1]) else "blew up"))
+        found.append((pts[c][0], "NaN" if not math.isfinite(pts[c][1]) else "blew up", True))
     if g is not None:
-        found.append((grads[g][0], "grad norm"))
+        found.append((grads[g][0], "grad norm", False))
     return min(found) if found else None
+
+
+def cut_at(b):
+    """Step past which the loss curve is meaningless, or None."""
+    return b[0] if b and b[2] else None
 
 
 def terminal(runs, total, left):
@@ -80,7 +89,8 @@ def terminal(runs, total, left):
     if left is not None:
         head += f"  · ~{left // 3600}h {left % 3600 // 60:02d}m left"
     b = broke(runs[-1])
-    finite = [y for x, y in pts if b is None or x < b[0]][-240:]  # healthy part only, a 1e6 blow-up would flatten it
+    c = cut_at(b)
+    finite = [y for x, y in pts if c is None or x < c][-240:]  # healthy part only, a 1e6 blow-up would flatten it
     spark = ""
     if finite:
         k = max(1, len(finite) // 30)
@@ -89,7 +99,7 @@ def terminal(runs, total, left):
         spark = "".join(SPARK[int((b - lo) / (hi - lo or 1) * 7.999)] for b in buckets)
     tail = f"  min {min(finite):.4g}" if finite else ""
     if b is not None:
-        tail += f" · ✕ {b[1]} @ step {b[0]:,}"
+        tail += f" · {'✕' if b[2] else '⚠'} {b[1]} @ step {b[0]:,}"
     if len(runs) > 1:
         tail += f" · {len(runs) - 1} resume{'s' * (len(runs) > 2)}"
     return f"{head}\nloss {loss:.4g}  {spark}{tail}"
@@ -98,13 +108,17 @@ def terminal(runs, total, left):
 def svg(runs, total):
     W, H, L, R, T, B = 760, 340, 64, 24, 64, 46
     cut = [broke(r) for r in runs]
-    healthy = [y for (_, pts, _), b in zip(runs, cut) for x, y in pts if b is None or x < b[0]]
+    ends = [cut_at(b) for b in cut]
+    healthy = [y for (_, pts, _), e in zip(runs, ends) for x, y in pts if e is None or x < e]
     if not healthy:
         return None
-    xmax = max([total or 0] + [x for _, pts, _ in runs for x, _ in pts]) or 1
+    steps = [x for _, pts, _ in runs for x, _ in pts]
+    xmin = min(steps)  # a resumed job starts mid-run; don't squash it against the right edge
+    xmax = max([total or 0] + steps)
+    xmax = xmax if xmax > xmin else xmin + 1
     lo, hi = min(healthy), max(healthy)
     hi = hi if hi > lo else lo + 1
-    X = lambda x: L + (W - L - R) * x / xmax
+    X = lambda x: L + (W - L - R) * (x - xmin) / (xmax - xmin)
     Y = lambda y: T + (H - T - B) * (1 - (min(y, hi) - lo) / (hi - lo)) if math.isfinite(y) else T - 4
     font = 'font-family="ui-monospace, Menlo, monospace"'
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">',
@@ -114,9 +128,9 @@ def svg(runs, total):
         v = lo + (hi - lo) * i / 3
         o.append(f'<line x1="{L}" x2="{W - R}" y1="{Y(v):.1f}" y2="{Y(v):.1f}" stroke="#2e2c2a"/>')
         o.append(f'<text x="{L - 8}" y="{Y(v) + 4:.1f}" text-anchor="end" {font} font-size="11" fill="#8b8783">{v:.3g}</text>')
-    o.append(f'<text x="{L}" y="{H - 18}" {font} font-size="11" fill="#8b8783">0</text>')
+    o.append(f'<text x="{L}" y="{H - 18}" {font} font-size="11" fill="#8b8783">{xmin:,}</text>')
     o.append(f'<text x="{W - R}" y="{H - 18}" text-anchor="end" {font} font-size="11" fill="#8b8783">step {xmax:,}</text>')
-    for n, ((_, pts, _), b) in enumerate(zip(runs, cut)):
+    for n, ((_, pts, _), b, e) in enumerate(zip(runs, cut, ends)):
         if not pts:
             continue
         last = n == len(runs) - 1
@@ -124,15 +138,25 @@ def svg(runs, total):
             x0 = X(pts[0][0])
             o.append(f'<line x1="{x0:.1f}" x2="{x0:.1f}" y1="{T - 6}" y2="{H - B}" stroke="#d97757" stroke-dasharray="3 4" opacity=".7"/>')
             o.append(f'<text x="{x0 + 6:.1f}" y="{H - B - 8}" {font} font-size="11" fill="#d97757">resumed @ {pts[0][0]:,}</text>')
-        shown = [p for p in pts if b is None or p[0] <= b[0]]  # past a blow-up the curve is just the clip line
+        shown = [p for p in pts if e is None or p[0] <= e]  # past a blow-up the curve is just the clip line
         k = max(1, len(shown) // 600)
         line = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in shown[::k] + shown[-1:])
+        if last:
+            # raw loss faded, EMA on top: real runs are too noisy to read otherwise
+            o.append(f'<polyline points="{line}" fill="none" stroke="#d97757" stroke-width="1" opacity=".3"/>')
+            a, ema, sm = 2 / (max(2, len(shown) // 40) + 1), None, []
+            for x, y in shown:
+                if math.isfinite(y):
+                    ema = y if ema is None else a * y + (1 - a) * ema
+                sm.append((x, ema if ema is not None else y))
+            line = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in sm[::k] + sm[-1:])
         style = 'stroke="#d97757" stroke-width="2.5"' if last else 'stroke="#8b8783" stroke-width="2" stroke-dasharray="5 4"'
         o.append(f'<polyline points="{line}" fill="none" {style} stroke-linejoin="round"/>')
         if b is not None:
-            o.append(f'<text x="{X(b[0]):.1f}" y="{T - 10}" text-anchor="middle" {font} font-size="12" font-weight="bold" fill="#ff6b6b">✕ {b[1]} @ {b[0]:,}</text>')
+            col = "#ff6b6b" if b[2] else "#f2cc60"
+            o.append(f'<text x="{X(b[0]):.1f}" y="{T - 10}" text-anchor="middle" {font} font-size="12" font-weight="bold" fill="{col}">{"✕" if b[2] else "⚠"} {b[1]} @ {b[0]:,}</text>')
     step, loss = runs[-1][1][-1] if runs[-1][1] else (0, float("nan"))
-    failed = cut[-1] is not None
+    failed = ends[-1] is not None
     o.append(f'<text x="{W - R}" y="36" text-anchor="end" {font} font-size="22" font-weight="bold" '
              f'fill="{"#ff6b6b" if failed else "#e8e6e3"}">{"NaN" if not math.isfinite(loss) else f"{loss:.4g}"}</text>')
     if total:

@@ -25,5 +25,5 @@ assert first_bad(steady) is None
 assert first_bad(steady + [(20, 9.0)]) == 20  # same 3x-median rule as the watcher
 assert first_bad(steady + [(20, float("nan"))]) == 20
 assert "blew up @ step 20" in terminal([("run.log", steady + [(20, 1e6)], [])], 40, None)
-assert "grad norm @ step 20" in terminal([("run.log", steady, [(i, 0.8) for i in range(20)] + [(20, 9.0)])], 40, None)
+assert "⚠ grad norm @ step 20" in terminal([("run.log", steady, [(i, 0.8) for i in range(20)] + [(20, 9.0)])], 40, None)
 print("ok")
