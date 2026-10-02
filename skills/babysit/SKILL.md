@@ -79,7 +79,7 @@ Read the tail before deciding anything. Then:
 | event | first check | fix (only with fix-and-resume permission) |
 |---|---|---|
 | `spike` | Did it recover in the tail? Right after warmup or a data shard switch? | One spike that recovers: note it, keep watching. Repeated or growing: treat as `nan`. |
-| `grad_spike` | The early warning: the loss often follows within a few steps. Is the grad norm still climbing in the tail? | Climbing: act now as for `nan`, before the loss blows up. A single blip: keep watching. |
+| `grad_spike` | The early warning: the loss often follows within a few steps. Is the grad norm still climbing in the tail? Compare the median grad norm and blip count over the last few thousand steps. | Climbing: act now as for `nan`, before the loss blows up. Blips that recover with no trend are this run's normal texture (common at high LR): restart with a higher `--grad-spike` (e.g. 20) so they stop waking you. |
 | `nan` | Step it started, grad norm, LR at that point, fp16 vs bf16. | Resume from the last checkpoint *before* the blow-up with LR halved (or warmup doubled); for fp16, try bf16 or a lower loss scale. |
 | `oom` | Which allocation, at what step: first step (config) or later (fragmentation, long batch)? | Halve the micro-batch and double grad accumulation so the global batch is unchanged; resume. |
 | `crash` | The traceback. Code bug, data bug, or infrastructure (NCCL, node, disk full)? | Infrastructure: resume as is. Obvious one-line code or path bug: fix, note the diff, resume. Anything else: report. |
