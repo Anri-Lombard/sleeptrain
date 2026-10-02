@@ -1,0 +1,12 @@
+{
+  "name": "sleeptrain",
+  "version": "0.1.0",
+  "description": "Claude watches your training run so you can sleep. Catches NaNs, loss spikes, OOMs, crashes, hangs and dead SLURM jobs, resumes from checkpoint when you allow it, and leaves a morning report.",
+  "author": {
+    "name": "Anri Lombard",
+    "url": "https://github.com/Anri-Lombard"
+  },
+  "repository": "https://github.com/Anri-Lombard/sleeptrain",
+  "license": "MIT",
+  "keywords": ["ml", "training", "slurm", "monitoring", "pytorch"]
+}

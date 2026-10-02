@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "sleeptrain",
+  "description": "Claude watches your training run so you can sleep.",
+  "owner": {
+    "name": "Anri Lombard",
+    "url": "https://github.com/Anri-Lombard"
+  },
+  "plugins": [
+    {
+      "name": "sleeptrain",
+      "description": "Overnight babysitter for ML training runs: NaNs, spikes, OOMs, crashes, hangs, SLURM.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
