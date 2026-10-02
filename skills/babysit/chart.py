@@ -154,7 +154,9 @@ def svg(runs, total):
         o.append(f'<polyline points="{line}" fill="none" {style} stroke-linejoin="round"/>')
         if b is not None:
             col = "#ff6b6b" if b[2] else "#f2cc60"
-            o.append(f'<text x="{X(b[0]):.1f}" y="{T - 10}" text-anchor="middle" {font} font-size="12" font-weight="bold" fill="{col}">{"✕" if b[2] else "⚠"} {b[1]} @ {b[0]:,}</text>')
+            bx = X(b[0])
+            anchor = "start" if bx < L + 90 else "end" if bx > W - R - 90 else "middle"  # keep the label inside the plot
+            o.append(f'<text x="{bx:.1f}" y="{T - 10}" text-anchor="{anchor}" {font} font-size="12" font-weight="bold" fill="{col}">{"✕" if b[2] else "⚠"} {b[1]} @ {b[0]:,}</text>')
     step, loss = runs[-1][1][-1] if runs[-1][1] else (0, float("nan"))
     failed = ends[-1] is not None
     o.append(f'<text x="{W - R}" y="36" text-anchor="end" {font} font-size="22" font-weight="bold" '
