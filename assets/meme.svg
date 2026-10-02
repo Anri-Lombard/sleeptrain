@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <defs>
+    <mask id="moon"><circle cx="150" cy="140" r="58" fill="#fff"/><circle cx="178" cy="122" r="50" fill="#000"/></mask>
+  </defs>
+  <rect width="1080" height="1080" fill="#fff"/>
+
+  <!-- row 1: the 3am alarm -->
+  <rect x="0" y="0" width="460" height="540" fill="#fff1ec"/>
+  <g transform="translate(230 285)" stroke="#2b2b2b" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-95 -128 a52 52 0 0 1 70 -30" fill="#e5484d"/>
+    <path d="M95 -128 a52 52 0 0 0 -70 -30" fill="#e5484d"/>
+    <path d="M-120 -150 a70 70 0 0 1 95 -42 M120 -150 a70 70 0 0 0 -95 -42" fill="none" stroke="#e5484d" stroke-width="6" opacity=".6"/>
+    <line x1="-80" y1="105" x2="-110" y2="150"/>
+    <line x1="80" y1="105" x2="110" y2="150"/>
+    <circle r="130" fill="#e5484d"/>
+    <circle r="104" fill="#fff"/>
+    <line x1="0" y1="0" x2="0" y2="-78" stroke-width="9"/>
+    <line x1="0" y1="0" x2="58" y2="0" stroke-width="12"/>
+    <circle r="9" fill="#2b2b2b"/>
+    <g stroke="#e5484d" stroke-width="7">
+      <line x1="-170" y1="-40" x2="-205" y2="-55"/><line x1="-172" y1="0" x2="-212" y2="0"/><line x1="-170" y1="40" x2="-205" y2="55"/>
+      <line x1="170" y1="-40" x2="205" y2="-55"/><line x1="172" y1="0" x2="212" y2="0"/><line x1="170" y1="40" x2="205" y2="55"/>
+    </g>
+  </g>
+  <text x="230" y="505" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-size="30" font-weight="800" fill="#e5484d">03:00</text>
+
+  <!-- row 2: night, Claude on watch -->
+  <rect x="0" y="540" width="460" height="540" fill="#14213d"/>
+  <g fill="#ffe8a3">
+    <circle cx="60" cy="600" r="3"/><circle cx="330" cy="590" r="2.5"/><circle cx="410" cy="660" r="3"/>
+    <circle cx="260" cy="620" r="2"/><circle cx="40" cy="760" r="2.5"/><circle cx="420" cy="780" r="2"/>
+  </g>
+  <g transform="translate(0 540)"><rect width="460" height="300" fill="#ffe8a3" mask="url(#moon)"/></g>
+  <text x="300" y="670" font-family="Helvetica Neue, Arial, sans-serif" font-size="46" font-weight="800" fill="#9fb3ff">z</text>
+  <text x="335" y="635" font-family="Helvetica Neue, Arial, sans-serif" font-size="36" font-weight="800" fill="#9fb3ff" opacity=".8">z</text>
+  <text x="362" y="608" font-family="Helvetica Neue, Arial, sans-serif" font-size="26" font-weight="800" fill="#9fb3ff" opacity=".6">z</text>
+  <!-- laptop with a loss curve that blew up and got fixed -->
+  <g transform="translate(230 870)">
+    <rect x="-150" y="-110" width="300" height="190" rx="14" fill="#2b2b2b"/>
+    <rect x="-136" y="-96" width="272" height="162" rx="6" fill="#191817"/>
+    <path d="M-150 80 h300 l30 26 h-360 z" fill="#3a3a3a"/>
+    <polyline points="-120,-70 -95,-40 -70,-22 -50,-14 -38,-60" fill="none" stroke="#ff6b6b" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" opacity=".55" stroke-dasharray="2 9"/>
+    <polyline points="-120,-70 -95,-40 -70,-22 -50,-14 -20,-4 20,8 60,15 115,20" fill="none" stroke="#7ee787" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="-38" cy="-60" r="7" fill="#ff6b6b"/>
+    <text x="0" y="52" text-anchor="middle" font-family="Menlo, monospace" font-size="18" fill="#d97757">● resumed from step 100</text>
+  </g>
+
+  <line x1="0" y1="540" x2="1080" y2="540" stroke="#2b2b2b" stroke-width="4"/>
+  <line x1="460" y1="0" x2="460" y2="1080" stroke="#2b2b2b" stroke-width="4"/>
+
+  <g font-family="Helvetica Neue, Arial, sans-serif" font-weight="800" fill="#1a1a1a" font-size="50">
+    <text x="510" y="200">Setting a 3am alarm</text>
+    <text x="510" y="262">to check if the loss</text>
+    <text x="510" y="324">went NaN</text>
+    <text x="510" y="740">Letting Claude</text>
+    <text x="510" y="802"><tspan fill="#d97757">sleep-train</tspan> your</text>
+    <text x="510" y="864">model</text>
+  </g>
+  <text x="1050" y="1060" text-anchor="end" font-family="Menlo, monospace" font-size="18" fill="#8b8783">github.com/Anri-Lombard/sleeptrain</text>
+</svg>
