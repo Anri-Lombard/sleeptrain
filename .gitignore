@@ -1,3 +1,4 @@
 run.log*
 ckpts/
 __pycache__/
+assets/.frames/

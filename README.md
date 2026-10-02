@@ -7,7 +7,7 @@ sleeptrain is a Claude Code plugin that sits on that run overnight. When it brea
 the log, works out what happened, resumes from the last good checkpoint with a safer setting
 (if you allowed it), and leaves you a report for the morning.
 
-<!-- TODO: demo GIF of the flaky_train.py run: NaN -> Claude resumes from step 100 at lower LR -> done -->
+<p align="center"><img src="assets/demo.gif" width="760" alt="Claude watches a training run overnight: the loss spikes at step 123, Claude resumes from the step 100 checkpoint at half the learning rate, and the run finishes by morning."></p>
 
 ```
 ## sleeptrain: run.log, 23:10 -> 06:42
@@ -84,6 +84,8 @@ and the guardrails.
 - On clusters with 2FA, open an ssh ControlMaster connection before bed so the watcher can
   reconnect without a prompt.
 - The loss regex covers common log formats. If yours differs, pass `--loss-regex`.
+
+<p align="center"><img src="assets/meme.png" width="420" alt="Meme. Top: an alarm clock at 03:00, Setting a 3am alarm to check if the loss went NaN. Bottom: a moon and a laptop with a recovered loss curve, Letting Claude sleep-train your model."></p>
 
 ## License
 
