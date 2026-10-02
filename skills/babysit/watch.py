@@ -4,7 +4,8 @@
 Stdlib only (Python 3.8+), so it also runs on a cluster login node:
     ssh hpc 'python3 - --log runs/42.out --slurm 42' < watch.py
 
-Events: nan, spike, oom, crash, stall, exited (local pid gone), done / died (SLURM).
+Events: nan, spike, grad_spike, oom, crash, stall, disk, exited (local pid gone), done / died (SLURM),
+and progress (only with --heartbeat).
 """
 import argparse
 import collections
@@ -12,11 +13,14 @@ import json
 import math
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import time
 
-LOSS = r"(?<![\w/])(?:train[_/])?loss\b[\s\"':=]*([-+]?(?:\d+\.?\d*(?:e[-+]?\d+)?|nan|inf))"
+NUM = r"[\s\"':=]*([-+]?(?:\d+\.?\d*(?:e[-+]?\d+)?|nan|inf))"
+LOSS = r"(?<![\w/])(?:train[_/])?loss\b" + NUM
+GRAD = re.compile(r"grad[_ ]?norm\b" + NUM, re.I)
 OOM = re.compile(r"out of memory|OutOfMemoryError|oom[-_ ]?kill|^Killed$", re.I)
 CRASH = re.compile(
     r"Traceback \(most recent call last\)|CUDA error|NCCL error|Segmentation fault"
@@ -52,28 +56,33 @@ def job_state(a):
     return None
 
 
-def check(line, losses, a):
+def check(line, hist, a):
     """Return an event name if this log line needs attention."""
     if OOM.search(line.strip()):
         return "oom"
     if CRASH.search(line):
         return "crash"
-    m = a.loss_re.search(line)
-    if not m:
-        return None
-    x = float(m.group(1))
-    if not math.isfinite(x):
-        return "nan"
-    # ponytail: ratio-to-median spike test, assumes positive losses; RL-style signed losses never trigger it
-    med = statistics.median(losses) if len(losses) >= 10 else 0
-    losses.append(x)
-    if med > 0 and x > a.spike * med:
-        return "spike"
+    # grad norm goes NaN or jumps a few steps before the loss does, so it is the early warning
+    for name, rx, factor in (("loss", a.loss_re, a.spike), ("grad_norm", GRAD, a.grad_spike)):
+        m = rx.search(line)
+        if not m:
+            continue
+        x = float(m.group(1))
+        if not math.isfinite(x):
+            return "nan"
+        # ponytail: ratio-to-median spike test, assumes positive values; RL-style signed losses never trigger it
+        h = hist[name]
+        med = statistics.median(h) if len(h) >= 10 else 0
+        h.append(x)
+        if med > 0 and x > factor * med:
+            return "spike" if name == "loss" else "grad_spike"
     return None
 
 
 def watch(a):
-    losses = collections.deque(maxlen=50)
+    hist = {"loss": collections.deque(maxlen=50), "grad_norm": collections.deque(maxlen=50)}
+    losses = hist["loss"]
+    started = time.time()
     tail = collections.deque(maxlen=a.tail)
     quiet_until = a.from_offset if a.from_offset is not None else (
         os.path.getsize(a.log) if os.path.exists(a.log) else 0)
@@ -86,6 +95,7 @@ def watch(a):
             "offset": pos - len(buf),  # pass back as --from to resume watching after this point
             "job_state": state,
             "last_loss": losses[-1] if losses else None,
+            "last_grad_norm": hist["grad_norm"][-1] if hist["grad_norm"] else None,
             "median_loss": statistics.median(losses) if losses else None,
             "tail": list(tail),
         }, indent=1))
@@ -110,7 +120,7 @@ def watch(a):
                             if not line.strip():
                                 continue
                             tail.append(line)
-                            event = check(line, losses, a)
+                            event = check(line, hist, a)
                             if event and loud:
                                 # point offset just past this line so a resume skips it
                                 pos -= sum(len(r) + 1 for r in lines[i + 1:]) + len(buf)
@@ -125,6 +135,11 @@ def watch(a):
             last_growth = time.time()
         if time.time() - last_growth > a.stall * 60:
             return emit("stall", "no new log output for %g min" % a.stall, state)
+        free = shutil.disk_usage(os.path.dirname(os.path.abspath(a.log))).free / 1e9
+        if free < a.min_free:
+            return emit("disk", "%.1f GB free where the log is written" % free, state)
+        if a.heartbeat and time.time() - started > a.heartbeat * 60:
+            return emit("progress", "heartbeat", state)
         time.sleep(a.every)
 
 
@@ -136,6 +151,9 @@ def main(argv=None):
     p.add_argument("--from", dest="from_offset", type=int,
                    help="byte offset to start alerting from (default: current end of log)")
     p.add_argument("--spike", type=float, default=3.0, help="alert when loss > SPIKE x recent median")
+    p.add_argument("--grad-spike", type=float, default=10.0, help="alert when grad norm > this x recent median")
+    p.add_argument("--min-free", type=float, default=2.0, help="alert when free disk drops below this many GB")
+    p.add_argument("--heartbeat", type=float, help="also exit with a progress event every N minutes")
     p.add_argument("--stall", type=float, default=30, help="minutes without log output before alerting")
     p.add_argument("--every", type=float, default=30, help="seconds between polls")
     p.add_argument("--tail", type=int, default=40, help="log lines to include in the event")

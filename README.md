@@ -9,6 +9,11 @@ the log, works out what happened, resumes from the last good checkpoint with a s
 
 <p align="center"><img src="assets/demo.gif" width="760" alt="Claude watches a training run overnight: the loss spikes at step 123, Claude resumes from the step 100 checkpoint at half the learning rate, and the run finishes by morning."></p>
 
+In the morning you get a report with a loss chart that marks where the run broke and where Claude
+picked it up:
+
+<p align="center"><img src="assets/chart.svg" width="680" alt="Loss chart: the first run in grey stops where the grad norm exploded at step 120, a dashed line marks the resume from step 100, and the resumed run in orange trains down to 1.22."></p>
+
 ```
 ## sleeptrain: run.log, 23:10 -> 06:42
 Status:    finished, step 20000/20000, final loss 2.31
@@ -47,16 +52,30 @@ python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &
 |---|---|
 | NaN / inf loss | the train loss in your log: `loss 2.31`, `loss=nan`, `{'loss': 2.31}`, `train/loss: ...` |
 | Loss spike | loss above 3x the median of the last 50 steps |
+| Exploding gradients | grad norm NaN or 10x its recent median, usually a few steps *before* the loss blows up |
 | CUDA OOM | `out of memory`, `OutOfMemoryError`, `oom-kill`, `Killed` |
 | Crash | Python tracebacks, CUDA / NCCL errors, segfaults |
 | Hang | no log output for 30 minutes while the job is running |
+| Full disk | under 2 GB free where the run writes (checkpoints pile up) |
 | Dead job | local PID gone, or SLURM state `TIMEOUT`, `FAILED`, `OUT_OF_MEMORY`, `NODE_FAIL`, `PREEMPTED` |
 
 Works with anything that prints a loss: PyTorch, HF Trainer, Lightning, nanoGPT, torchtune, JAX.
 
+## Ask how it's going
+
+> how's my run?
+
+```
+run.r1.log  [████████████████░░░░░░░░]   66%  step 198/300  · ~1h 04m left
+loss 1.707  ████▇▆▆▅▅▄▄▃▄▄▃▃▂▂▂▂▁▁▁▁▂▂▂▂▂  min 1.585 · 1 resume
+```
+
+Add "check in every hour" and Claude sends you that every hour too (as a push notification if
+you have them set up).
+
 ## How it works
 
-`skills/babysit/watch.py` is a ~150-line, stdlib-only Python script that follows the log and
+`skills/babysit/watch.py` is a ~170-line, stdlib-only Python script that follows the log and
 blocks until something needs attention, then prints one JSON event and exits. Claude runs it
 in the background, so it spends **zero tokens while the run is healthy** and only wakes on a
 real event. Since it's stdlib only, it also runs on a cluster login node over ssh with nothing
@@ -65,6 +84,8 @@ installed:
 ```bash
 ssh hpc 'python3 - --log runs/123456.out --slurm 123456' < watch.py
 ```
+
+`skills/babysit/chart.py` draws the progress bar, sparkline and SVG chart, also stdlib only.
 
 The skill (`skills/babysit/SKILL.md`) is the playbook: what to check for each event, which fixes
 are allowed (LR, warmup, micro-batch with matching grad accumulation, precision, resubmitting),

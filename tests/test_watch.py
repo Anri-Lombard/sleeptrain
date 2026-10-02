@@ -31,6 +31,9 @@ assert e["event"] == "spike" and e["last_loss"] == 9.5, e
 
 assert run(losses, ["{'loss': nan, 'grad_norm': inf}"])["event"] == "nan"  # HF Trainer dict
 assert run(losses, ["100%|###| loss=NaN"])["event"] == "nan"  # tqdm postfix
+assert run(losses, ["{'loss': 2.9, 'grad_norm': nan}"])["event"] == "nan"  # grads go first
+grads = [f"step {i} | loss 2.0 | grad_norm 0.8" for i in range(20)]
+assert run(grads, ["step 20 | loss 2.0 | grad_norm 9.1"])["event"] == "grad_spike"
 assert run([], ["torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2 GiB"])["event"] == "oom"
 assert run([], ["Traceback (most recent call last):", '  File "train.py"'])["event"] == "crash"
 
