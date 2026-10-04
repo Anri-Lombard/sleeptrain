@@ -76,7 +76,7 @@ ends: `FAILED`, `TIMEOUT`, `OUT_OF_MEMORY`, `NODE_FAIL` and `PREEMPTED` wake you
 Stalls aren't detected in sweep mode, because sweep logs are often quiet for hours.
 
 Tuning flags: `--spike 3` (loss above 3x the recent median), `--grad-spike 10`
-(same for grad norm), `--stall 30` (minutes of silence), `--min-free 2` (GB of
+(same for grad norm), `--drift 1.5` (recent median loss above 1.5x its lowest), `--stall 30` (minutes of silence), `--min-free 2` (GB of
 disk), `--every 30` (poll seconds; keep it at 30+ on shared schedulers), and
 `--loss-regex` if the log names the train loss something other than `loss` /
 `train_loss` / `train/loss`.
@@ -97,6 +97,7 @@ Read the tail before deciding anything. Then:
 |---|---|---|
 | `spike` | Did it recover in the tail? Right after warmup or a data shard switch? | One spike that recovers: note it, keep watching. Repeated or growing: treat as `nan`. |
 | `grad_spike` | The early warning: the loss often follows within a few steps. Is the grad norm still climbing in the tail? Compare the median grad norm and blip count over the last few thousand steps. | Climbing: act now as for `nan`, before the loss blows up. Blips that recover with no trend are this run's normal texture (common at high LR): restart with a higher `--grad-spike` (e.g. 20) so they stop waking you. |
+| `drift` / `grad_drift` | The slow version: the recent median has climbed to `--drift` (loss, default 1.5) or `--grad-spike` (grad norm) times its lowest this run, with no single spike. Expected (LR warmup ending, a planned data mix change) or a real divergence? | Real divergence: as for `nan`, resuming from a checkpoint saved before the climb began. Expected: note it and keep watching; it only fires again if the median drops back and climbs again. |
 | `nan` | Step it started, grad norm, LR at that point, fp16 vs bf16. | Resume from the last checkpoint *before* the blow-up with LR halved (or warmup doubled); for fp16, try bf16 or a lower loss scale. |
 | `oom` | Which allocation, at what step: first step (config) or later (fragmentation, long batch)? | Halve the micro-batch and double grad accumulation so the global batch is unchanged; resume. |
 | `crash` | The traceback. Code bug, data bug, or infrastructure (NCCL, node, disk full)? | Infrastructure: resume as is. Obvious one-line code or path bug: fix, note the diff, resume. Anything else: report. |

@@ -5,7 +5,7 @@ Stdlib only (Python 3.9+), so it also runs on a cluster login node:
     ssh hpc 'python3 - --log runs/42.out --slurm 42' < watch.py     # one run
     ssh hpc 'python3 - --sweep --glob "runs/*/train_log.jsonl"' < watch.py   # every SLURM job you own
 
-Events: nan, spike, grad_spike, oom, crash, stall, disk, exited (local pid gone), done / died (SLURM),
+Events: nan, spike, grad_spike, drift, grad_drift (slow climbs), oom, crash, stall, disk, exited (local pid gone), done / died (SLURM),
 sweep_done (sweep mode: your queue is empty), and healthy: nothing wrong after --max-minutes, so agent
 background-task limits never kill it mid-watch. Restart with --from <offset> (one run) or the same
 command (sweep mode keeps its place in --state) to keep watching.
@@ -69,7 +69,7 @@ def check(line, hist, a):
     if CRASH.search(line):
         return "crash"
     # grad norm goes NaN or jumps a few steps before the loss does, so it is the early warning
-    for name, rx, factor in (("loss", a.loss_re, a.spike), ("grad_norm", GRAD, a.grad_spike)):
+    for name, rx, factor, drift in (("loss", a.loss_re, a.spike, a.drift), ("grad_norm", GRAD, a.grad_spike, a.grad_spike)):
         m = rx.search(line)
         if not m:
             continue
@@ -82,6 +82,15 @@ def check(line, hist, a):
         h.append(x)
         if med > 0 and x > factor * med:
             return "spike" if name == "loss" else "grad_spike"
+        # A slow climb drags the recent median up with it, so the spike test never fires. Compare the
+        # recent median against the lowest one seen this run instead, alerting only when it first crosses
+        # so a restart (which replays the log) doesn't re-alert on a drift Claude already looked at.
+        if len(h) == h.maxlen:
+            now = statistics.median(h)
+            floor = hist[name + "_floor"] = min(hist.get(name + "_floor", now), now)
+            was, hist[name + "_drifting"] = hist.get(name + "_drifting", False), now > drift * floor
+            if hist[name + "_drifting"] and not was:
+                return "drift" if name == "loss" else "grad_drift"
     return None
 
 
@@ -239,7 +248,10 @@ def main(argv=None):
     p.add_argument("--from", dest="from_offset", type=int,
                    help="byte offset to start alerting from (default: current end of log)")
     p.add_argument("--spike", type=float, default=3.0, help="alert when loss > SPIKE x recent median")
-    p.add_argument("--grad-spike", type=float, default=10.0, help="alert when grad norm > this x recent median")
+    p.add_argument("--grad-spike", type=float, default=10.0,
+                   help="alert when grad norm > this x recent median, or its recent median drifts to this x its lowest")
+    p.add_argument("--drift", type=float, default=1.5,
+                   help="alert when the recent median loss climbs to this x the lowest it has been this run")
     p.add_argument("--min-free", type=float, default=2.0, help="alert when free disk drops below this many GB")
     p.add_argument("--max-minutes", type=float, default=20,
                    help="exit with a 'healthy' event after this long (stay under your agent's background limit)")

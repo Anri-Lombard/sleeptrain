@@ -80,6 +80,7 @@ python3 examples/flaky_train.py --delay 0.4 > run.log 2>&1 &
 | NaN / inf loss | the train loss in your log: `loss 2.31`, `loss=nan`, `{'loss': 2.31}`, `train/loss: ...` |
 | Loss spike | loss above 3x the median of the last 50 steps |
 | Exploding gradients | grad norm NaN or 10x its recent median, usually a few steps *before* the loss blows up |
+| Slow drift | recent median loss 1.5x its lowest this run, or grad norm 10x: a gradual divergence that never spikes |
 | CUDA OOM | `out of memory`, `OutOfMemoryError`, `oom-kill`, `Killed` |
 | Crash | Python tracebacks, CUDA / NCCL errors, segfaults |
 | Hang | no log output for 30 minutes while the job is running |

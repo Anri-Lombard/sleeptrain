@@ -37,6 +37,18 @@ assert run(grads, ["step 20 | loss 2.0 | grad_norm 9.1"])["event"] == "grad_spik
 assert run([], ["torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2 GiB"])["event"] == "oom"
 assert run([], ["Traceback (most recent call last):", '  File "train.py"'])["event"] == "crash"
 
+# a slow climb never trips the spike test but does trip drift, and only once: a restart replays the log
+falls = [f"step {i} | loss {3 - i * 0.03:.3f}" for i in range(70)]
+creep = [f"step {70 + i} | loss {0.9 * 1.01 ** i:.3f}" for i in range(120)]
+e = run(falls, creep)
+assert e["event"] == "drift", e
+with tempfile.TemporaryDirectory() as d:
+    log = os.path.join(d, "run.log")
+    open(log, "w").write("".join(l + "\n" for l in falls + creep + ["step 999 | loss 1.9"]))
+    again = subprocess.run([sys.executable, WATCH, "--log", log, "--from", str(e["offset"]), "--every", "0.05",
+                            "--max-minutes", "0.01"], capture_output=True, text=True, timeout=10)
+    assert json.loads(again.stdout)["event"] == "healthy", again.stdout
+
 # look-alikes that must not fire: val loss, loss scale, a single noisy step
 quiet = losses + ["val_loss: nan", "reducing loss scale to 32768", "step 21 | loss 3.4", "loss_scale: 65536"]
 e = run([], quiet + ["Killed"])
