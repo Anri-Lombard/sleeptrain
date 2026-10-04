@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""A fake training run that diverges at high learning rates, for trying sleeptrain in 30 seconds.
+"""A small fake training run that saves a checkpoint every 50 steps, for trying sleeptrain.
 
-    python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &   # grad norm explodes at ~118, loss at ~121
-    python3 examples/flaky_train.py --lr 1e-3 --resume ckpts/step_100.json > run.r1.log 2>&1 &   # converges
+    python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &
 """
+# (It is deliberately unstable at its default learning rate. The header says nothing about how,
+# so the babysitter has to work it out from the log, like on a real run.)
 import argparse
 import json
 import math
