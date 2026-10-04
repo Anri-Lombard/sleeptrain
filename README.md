@@ -12,7 +12,7 @@ the log, works out what happened, resumes from the last good checkpoint with a s
 In the morning you get a report with a loss chart that marks where the run broke and where Claude
 picked it up:
 
-<p align="center"><img src="assets/chart.svg" width="680" alt="Loss chart: the first run in grey stops where the grad norm exploded at step 120, a dashed line marks the resume from step 100, and the resumed run in orange trains down to 1.22."></p>
+<p align="center"><img src="assets/chart.svg" width="680" alt="Loss chart from the demo: the first run in grey blows up after the grad norm starts exploding around step 148, a dashed line marks the resume from step 100, and the resumed run in orange trains down to 1.42."></p>
 
 ```
 ## sleeptrain: run.log, 23:10 -> 06:42
@@ -40,20 +40,21 @@ Tell Claude what to watch:
 
 > babysit my run: logs in runs/run.log, slurm job 123456. You can resume from checkpoint if it breaks.
 
-or just `/sleeptrain:babysit`.
+or just `/sleeptrain:babysit`. Claude asks for anything it can't work out, starts the watcher and
+goes quiet until something happens.
 
 Running a sweep? One watcher covers every SLURM job you own, including jobs that start later:
 
-> babysit all my jobs on hpc tonight, the metrics are in runs/*/train_log.jsonl Claude asks for anything it can't work out, starts the watcher and
-goes quiet until something happens.
+> babysit all my jobs on hpc tonight, the metrics are in runs/*/train_log.jsonl
 
-Try it in 30 seconds with the fake run that diverges:
+Try it in a few minutes with the demo run, which goes unstable partway through (the script doesn't say
+when or why, so Claude has to work it out from the log):
 
 ```bash
-python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &
+python3 examples/flaky_train.py --delay 0.4 > run.log 2>&1 &
 ```
 
-> babysit run.log, pid is $!, you may fix and resume
+> babysit run.log, you may fix and resume
 
 ## What it catches
 
