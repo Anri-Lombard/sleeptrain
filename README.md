@@ -103,6 +103,8 @@ and the guardrails.
 
 - Claude Code has to stay running overnight. Keep the laptop awake (`caffeinate -i` on macOS)
   or run Claude on a machine that doesn't sleep.
+- Use an interactive session. Headless `claude -p` exits when Claude ends its turn, so nothing is
+  left to wake when the watcher fires.
 - On clusters with 2FA, open an ssh ControlMaster connection before bed so the watcher can
   reconnect without a prompt.
 - The loss regex covers common log formats. If yours differs, pass `--loss-regex`.
