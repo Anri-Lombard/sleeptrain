@@ -7,7 +7,8 @@ sleeptrain is a Claude Code plugin that sits on that run overnight. When it brea
 the log, works out what happened, resumes from the last good checkpoint with a safer setting
 (if you allowed it), and leaves you a report for the morning.
 
-<p align="center"><img src="assets/demo.gif" width="760" alt="Claude watches a training run overnight: the loss spikes at step 123, Claude resumes from the step 100 checkpoint at half the learning rate, and the run finishes by morning."></p>
+<p align="center"><img src="assets/demo.gif" width="760" alt="A real Claude Code session, sped up 7 times: asked to babysit a training run, Claude loads the sleeptrain skill, starts the watcher, notices the grad norm climbing, skips the corrupted step 150 checkpoint, resumes from step 100 at half the learning rate, and reports the finished run with a progress bar and loss sparkline."></p>
+<p align="center"><sub>A real Claude Code session on the demo run, sped up 7×.</sub></p>
 
 In the morning you get a report with a loss chart that marks where the run broke and where Claude
 picked it up:

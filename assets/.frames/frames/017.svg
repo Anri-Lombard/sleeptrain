@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620">
+<rect width="960" height="620" rx="14" fill="#191817"/>
+<path d="M0 14a14 14 0 0 1 14-14h932a14 14 0 0 1 14 14v26H0z" fill="#262422"/>
+<circle cx="24" cy="20" r="6.5" fill="#ff5f57"/>
+<circle cx="46" cy="20" r="6.5" fill="#febc2e"/>
+<circle cx="68" cy="20" r="6.5" fill="#28c840"/>
+<text x="480.0" y="25" text-anchor="middle" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="14" fill="#8b8783">claude · sleeptrain</text>
+<text x="932" y="25" text-anchor="end" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="14" font-weight="bold" fill="#79c0ff">☾ 02:13</text>
+<text x="28" y="64" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#7ee787" font-weight="bold">$ </tspan><tspan fill="#e8e6e3" font-weight="normal">python3 train.py --lr 3e-3 &gt; run.log 2&gt;&amp;1 &amp;</tspan></text>
+<text x="28" y="89" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#8b8783" font-weight="normal">[1] 4242</tspan></text>
+<text x="28" y="114" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#e8e6e3" font-weight="normal"></tspan></text>
+<text x="28" y="139" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#d97757" font-weight="bold">&gt; </tspan><tspan fill="#e8e6e3" font-weight="normal">babysit run.log, you can fix and resume. going to bed</tspan></text>
+<text x="28" y="164" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#e8e6e3" font-weight="normal"></tspan></text>
+<text x="28" y="189" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#d97757" font-weight="normal">● </tspan><tspan fill="#e8e6e3" font-weight="normal">Watching run.log (pid 4242), checkpoints every 50 steps.</tspan></text>
+<text x="28" y="214" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#e8e6e3" font-weight="normal">  Going quiet until something breaks. Sleep well.</tspan></text>
+<text x="28" y="239" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#8b8783" font-weight="normal">  └ watch.py in background · near-zero tokens while healthy</tspan></text>
+<text x="28" y="264" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#79c0ff" font-weight="normal">                    z z z . . .</tspan></text>
+<text x="28" y="289" font-family="JetBrainsMonoNL Nerd Font Mono, Menlo, monospace" font-size="17" xml:space="preserve"><tspan fill="#e8e6e3" font-weight="normal">step 117/300 | loss 2.0069 | </tspan><tspan fill="#8b8783" font-weight="normal">grad_norm 0.76</tspan><tspan fill="#8b8783" font-weight="normal"> | lr 0.003</tspan></text>
+</svg>
