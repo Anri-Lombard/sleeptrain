@@ -55,10 +55,11 @@ def first_bad(pts, spike=3.0):
 
 
 def broke(run):
-    """(step, what, fatal) for the first NaN, loss blow-up or grad-norm spike in a run, or None.
+    """(marker, cut) for a run. marker = (step, what, fatal) for the first NaN, loss blow-up or grad-norm spike,
+    shown on the chart; cut = step of the first loss problem, past which the curve is meaningless, or None.
 
-    Only loss problems are fatal (the curve is cut there). A grad-norm spike is marked but the
-    curve carries on, since high-LR runs recover from one-step blips all the time.
+    A grad-norm spike alone is only marked, since high-LR runs recover from one-step blips all the time,
+    but it must never hide a later loss blow-up.
     """
     _, pts, grads = run
     found = []
@@ -67,12 +68,7 @@ def broke(run):
         found.append((pts[c][0], "NaN" if not math.isfinite(pts[c][1]) else "blew up", True))
     if g is not None:
         found.append((grads[g][0], "grad norm", False))
-    return min(found) if found else None
-
-
-def cut_at(b):
-    """Step past which the loss curve is meaningless, or None."""
-    return b[0] if b and b[2] else None
+    return (min(found) if found else None), (pts[c][0] if c is not None else None)
 
 
 def terminal(runs, total, left):
@@ -88,8 +84,7 @@ def terminal(runs, total, left):
         head = f"{runs[-1][0]}  step {step:,}"
     if left is not None:
         head += f"  · ~{left // 3600}h {left % 3600 // 60:02d}m left"
-    b = broke(runs[-1])
-    c = cut_at(b)
+    b, c = broke(runs[-1])
     finite = [y for x, y in pts if c is None or x < c][-240:]  # healthy part only, a 1e6 blow-up would flatten it
     spark = ""
     if finite:
@@ -107,8 +102,7 @@ def terminal(runs, total, left):
 
 def svg(runs, total):
     W, H, L, R, T, B = 760, 340, 64, 24, 64, 46
-    cut = [broke(r) for r in runs]
-    ends = [cut_at(b) for b in cut]
+    cut, ends = zip(*[broke(r) for r in runs])
     healthy = [y for (_, pts, _), e in zip(runs, ends) for x, y in pts if e is None or x < e]
     if not healthy:
         return None

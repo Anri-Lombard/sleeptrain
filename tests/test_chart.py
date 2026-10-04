@@ -26,4 +26,9 @@ assert first_bad(steady + [(20, 9.0)]) == 20  # same 3x-median rule as the watch
 assert first_bad(steady + [(20, float("nan"))]) == 20
 assert "blew up @ step 20" in terminal([("run.log", steady + [(20, 1e6)], [])], 40, None)
 assert "⚠ grad norm @ step 20" in terminal([("run.log", steady, [(i, 0.8) for i in range(20)] + [(20, 9.0)])], 40, None)
+# a grad-norm warning first must not hide the loss blowing up a few steps later
+grads = [(i, 0.8) for i in range(20)] + [(20, 9.0)]
+assert "⚠ grad norm @ step 20" in terminal([("run.log", steady + [(20, 2.8), (21, 1e6)], grads)], 40, None)
+from chart import broke
+assert broke(("run.log", steady + [(20, 2.8), (21, 1e6)], grads)) == ((20, "grad norm", False), 21)
 print("ok")
