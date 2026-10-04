@@ -1,11 +1,11 @@
 # sleeptrain
 
-**Claude watches your training run so you can sleep.**
+**Claude watches your training runs so you can sleep. One run, or a whole SLURM sweep.**
 
-You start a 10-hour run at midnight. At 02:13 the loss goes NaN, and you find out at 08:00.
-sleeptrain is a Claude Code plugin that sits on that run overnight. When it breaks, Claude reads
-the log, works out what happened, resumes from the last good checkpoint with a safer setting
-(if you allowed it), and leaves you a report for the morning.
+You start a 10-hour run (or 15 of them on the cluster) at midnight. At 02:13 one goes NaN, and you
+find out at 08:00. sleeptrain is a Claude Code plugin that sits on your runs overnight. When one
+breaks, Claude reads the log, works out what happened, resumes from the last good checkpoint with a
+safer setting (if you allowed it), and leaves you a report for the morning.
 
 <p align="center"><img src="assets/explainer.gif" width="760" alt="Animated chart of an overnight demo run: the grad norm starts climbing at step 133 while the loss still looks fine, Claude says it will resume from step 100 because step 150 is already corrupted, the loss explodes on the abandoned run, the resumed run trains cleanly to step 300, and by morning the report says finished, final loss 1.418, one resume."></p>
 
@@ -26,6 +26,23 @@ Look at:   loss spike at step 14,200 recovered on its own, probably a data shard
 <summary>The unedited Claude Code session behind that animation (7× speed)</summary>
 <p align="center"><img src="assets/session.gif" width="760" alt="A real Claude Code session, sped up 7 times: asked to babysit a training run, Claude loads the sleeptrain skill, starts the watcher, notices the grad norm climbing, skips the corrupted step 150 checkpoint, resumes from step 100 at half the learning rate, and reports the finished run."></p>
 </details>
+
+## Why not just ask Claude to watch the log?
+
+For one local run, Claude Code can tail a log on its own and often does fine. sleeptrain is for the
+night shift on real training jobs:
+
+- **Whole sweeps on a cluster.** One stdlib watcher on the login node (over ssh, nothing to install)
+  follows every SLURM job you own, picks up new jobs as they start, and wakes Claude when one fails,
+  times out, runs out of memory or gets preempted. Not for jobs that finish or that you cancel.
+- **Earlier warning.** It watches the grad norm, which usually explodes a few steps before the loss does.
+- **Never resumes from a broken checkpoint.** A checkpoint saved after things started going wrong
+  is skipped, not restored.
+- **Guardrails.** Report-only unless you allow fixes; then only LR, warmup, micro-batch (with matching
+  grad accumulation) or precision, at most 3 resumes a night, and never your data, model size or eval.
+- **Built to last the night.** A 20-minute heartbeat so agent time limits never kill the watch, no
+  orphaned processes on shared login nodes, and near-zero tokens while runs are healthy.
+- **A morning report** with a progress bar, loss sparkline and a chart of where it broke and resumed.
 
 ## Install
 
