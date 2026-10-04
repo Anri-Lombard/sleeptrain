@@ -7,8 +7,7 @@ sleeptrain is a Claude Code plugin that sits on that run overnight. When it brea
 the log, works out what happened, resumes from the last good checkpoint with a safer setting
 (if you allowed it), and leaves you a report for the morning.
 
-<p align="center"><img src="assets/demo.gif" width="760" alt="A real Claude Code session, sped up 7 times: asked to babysit a training run, Claude loads the sleeptrain skill, starts the watcher, notices the grad norm climbing, skips the corrupted step 150 checkpoint, resumes from step 100 at half the learning rate, and reports the finished run with a progress bar and loss sparkline."></p>
-<p align="center"><sub>A real Claude Code session on the demo run, sped up 7×.</sub></p>
+<p align="center"><img src="assets/explainer.gif" width="760" alt="Animated chart of an overnight demo run: the grad norm starts climbing at step 133 while the loss still looks fine, Claude says it will resume from step 100 because step 150 is already corrupted, the loss explodes on the abandoned run, the resumed run trains cleanly to step 300, and by morning the report says finished, final loss 1.418, one resume."></p>
 
 In the morning you get a report with a loss chart that marks where the run broke and where Claude
 picked it up:
@@ -22,6 +21,11 @@ Overnight: NaN at step 8,410 (LR 3e-4, fp16). Resumed from step 8,000 at LR 1.5e
 Changed:   lr 3e-4 -> 1.5e-4 (run.r1.log). Nothing else.
 Look at:   loss spike at step 14,200 recovered on its own, probably a data shard switch.
 ```
+
+<details>
+<summary>The unedited Claude Code session behind that animation (7× speed)</summary>
+<p align="center"><img src="assets/session.gif" width="760" alt="A real Claude Code session, sped up 7 times: asked to babysit a training run, Claude loads the sleeptrain skill, starts the watcher, notices the grad norm climbing, skips the corrupted step 150 checkpoint, resumes from step 100 at half the learning rate, and reports the finished run."></p>
+</details>
 
 ## Install
 
