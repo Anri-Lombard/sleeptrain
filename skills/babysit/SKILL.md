@@ -9,7 +9,7 @@ description: >
   setting), and leaves a morning report. Use when the user says "babysit",
   "watch my run", "keep an eye on training", "monitor this job", "I'm going to
   sleep", asks how a run is going, or starts a long training run and walks away. Works for local runs,
-  SLURM jobs, and runs on a remote cluster over ssh.
+  single SLURM jobs, whole SLURM sweeps ("watch all my jobs"), and runs on a remote cluster over ssh.
 ---
 
 # Babysit a training run
@@ -58,6 +58,23 @@ ssh hpc 'python3 - --log ~/runs/123456.out --slurm 123456' < <skill-dir>/watch.p
 ssh must not prompt. If the cluster needs 2FA, ask the user to open a
 ControlMaster connection once before they go to sleep.
 
+**A whole sweep** (many SLURM jobs, lanes, an array): watch every job the user
+owns with one watcher instead of one per job:
+
+```bash
+ssh hpc 'python3 - --sweep --glob "runs/*/train_log.jsonl"' < <skill-dir>/watch.py
+```
+
+It follows each running job's SLURM log (new jobs are picked up as they start),
+any metric files matching `--glob` (optional, repeatable; this is where loss and
+grad-norm checks happen if the SLURM logs don't print the loss), and how each job
+ends: `FAILED`, `TIMEOUT`, `OUT_OF_MEMORY`, `NODE_FAIL` and `PREEMPTED` wake you;
+`COMPLETED` and `CANCELLED` don't (sweeps cancel jobs on purpose). Events carry
+`job`, `job_name` and `log`. It remembers where it got to in `--state`
+(`~/.sleeptrain-sweep.json`), so restart it with the same command, no `--from`.
+`sweep_done` means the queue is empty: write the report, one line per job.
+Stalls aren't detected in sweep mode, because sweep logs are often quiet for hours.
+
 Tuning flags: `--spike 3` (loss above 3x the recent median), `--grad-spike 10`
 (same for grad norm), `--stall 30` (minutes of silence), `--min-free 2` (GB of
 disk), `--every 30` (poll seconds; keep it at 30+ on shared schedulers), and
@@ -89,6 +106,7 @@ Read the tail before deciding anything. Then:
 | `died` | SLURM state: `TIMEOUT`, `OUT_OF_MEMORY`, `NODE_FAIL`, `PREEMPTED`, `FAILED`. | `TIMEOUT` / `NODE_FAIL` / `PREEMPTED`: resubmit with resume. Others: as `oom` / `crash`. |
 | `exited` | The tail: did it finish cleanly or die? | As `done` or `crash`. |
 | `done` | Final loss and eval numbers in the log. | Write the report. |
+| `sweep_done` | Sweep mode: the queue is empty. `sacct -u <user> -S <start>` for how every job ended. | Write the report, one line per job. |
 
 After a transient event you chose to ride out, restart the watcher with
 `--from <offset>` so it skips the line you already handled. After a resume,

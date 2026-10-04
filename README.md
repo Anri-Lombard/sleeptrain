@@ -35,7 +35,11 @@ Tell Claude what to watch:
 
 > babysit my run: logs in runs/run.log, slurm job 123456. You can resume from checkpoint if it breaks.
 
-or just `/sleeptrain:babysit`. Claude asks for anything it can't work out, starts the watcher and
+or just `/sleeptrain:babysit`.
+
+Running a sweep? One watcher covers every SLURM job you own, including jobs that start later:
+
+> babysit all my jobs on hpc tonight, the metrics are in runs/*/train_log.jsonl Claude asks for anything it can't work out, starts the watcher and
 goes quiet until something happens.
 
 Try it in 30 seconds with the fake run that diverges:
@@ -57,7 +61,7 @@ python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &
 | Crash | Python tracebacks, CUDA / NCCL errors, segfaults |
 | Hang | no log output for 30 minutes while the job is running |
 | Full disk | under 2 GB free where the run writes (checkpoints pile up) |
-| Dead job | local PID gone, or SLURM state `TIMEOUT`, `FAILED`, `OUT_OF_MEMORY`, `NODE_FAIL`, `PREEMPTED` |
+| Dead job | local PID gone, or SLURM state `TIMEOUT`, `FAILED`, `OUT_OF_MEMORY`, `NODE_FAIL`, `PREEMPTED`; in sweep mode, for every job you own |
 
 Works with anything that prints a loss: PyTorch, HF Trainer, Lightning, nanoGPT, torchtune, JAX.
 
@@ -75,7 +79,7 @@ you have them set up).
 
 ## How it works
 
-`skills/babysit/watch.py` is a ~170-line, stdlib-only Python script that follows the log and
+`skills/babysit/watch.py` is a ~260-line, stdlib-only Python script that follows the log and
 blocks until something needs attention, then prints one JSON event and exits. Claude runs it
 in the background, so it costs **almost no tokens while the run is healthy**: a quiet check-in
 every 20 minutes (agent background tasks get killed if they run longer) and a real wake-up only
