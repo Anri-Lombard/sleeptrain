@@ -3,8 +3,6 @@
 
     python3 examples/flaky_train.py --lr 3e-3 > run.log 2>&1 &
 """
-# (It is deliberately unstable at its default learning rate. The header says nothing about how,
-# so the babysitter has to work it out from the log, like on a real run.)
 import argparse
 import json
 import math
